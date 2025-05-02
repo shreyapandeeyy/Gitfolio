@@ -1,5 +1,6 @@
 import os
-from google_gemini_sdk import GeminiClient  # Hypothetical SDK for Google Gemini
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 import json
 from Fetch import aggregate_repo_data
@@ -11,9 +12,8 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
 # Initialize Google Gemini client
-client = GeminiClient(
+client = genai.Client(
     api_key=GEMINI_API_KEY,
-    model="gemini-2.0-flash"  # Specify the model
 )
 
 def generate_star_resume_section(repo_data):
@@ -23,8 +23,8 @@ def generate_star_resume_section(repo_data):
     :return: A dictionary with Name, Date, and Descriptions.
     """
     try:
-        # Prepare the prompt with the repo data
-        prompt = f"""
+        # Prepare the input text with the repo data
+        input_text = f"""
         Generate a professional and concise project description for a resume using the STAR (Situation, Task, Action, Result) method.
         Each component must consist of a single, concise sentence written in formal, action-oriented language without personal pronouns or references.
 
@@ -44,15 +44,27 @@ def generate_star_resume_section(repo_data):
         Ensure the output is concise, professional, and directly applicable to a resume.
         """
 
-        # Call Google Gemini API to generate completion
-        response = client.generate_text(
-            prompt=prompt,
-            temperature=0.7,
-            max_tokens=500
+        # Set up the request configuration
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=input_text)],
+            )
+        ]
+        generate_content_config = types.GenerateContentConfig(
+            response_mime_type="text/plain",
         )
 
+        # Call Google Gemini API to generate content
+        result_text = ""
+        for chunk in client.models.generate_content_stream(
+            model="gemini-2.0-flash",
+            contents=contents,
+            config=generate_content_config,
+        ):
+            result_text += chunk.text
+
         # Parse the result
-        result_text = response.result.strip()
         descriptions = [line.split(": ", 1)[1].strip() for line in result_text.split("\n") if ": " in line]
 
         # Return the structured data
@@ -60,7 +72,7 @@ def generate_star_resume_section(repo_data):
             "Name": repo_data["Repository Name"],
             "Date": f"{repo_data['Start Date']} - {repo_data['Last Updated']}",
             "Languages": list(repo_data["Languages"].keys()),
-            "Descriptions": descriptions[:4]  # Ensures 4 sentences (one for each STAR component)
+            "Descriptions": descriptions[:4],  # Ensures 4 sentences (one for each STAR component)
         }
 
     except Exception as e:
