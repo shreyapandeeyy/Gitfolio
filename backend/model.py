@@ -1,5 +1,5 @@
 import os
-from openai import OpenAI
+from google_gemini_sdk import GeminiClient  # Hypothetical SDK for Google Gemini
 from dotenv import load_dotenv
 import json
 from Fetch import aggregate_repo_data
@@ -7,24 +7,25 @@ from Fetch import aggregate_repo_data
 # Load environment variables
 load_dotenv()
 
-# OpenAI API Key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Google Gemini API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize OpenAI client
-client = OpenAI(
-    api_key=OPENAI_API_KEY,
+# Initialize Google Gemini client
+client = GeminiClient(
+    api_key=GEMINI_API_KEY,
+    model="gemini-2.0-flash"  # Specify the model
 )
 
 def generate_star_resume_section(repo_data):
     """
-    Generate a STAR-based project section for a resume using OpenAI API.
+    Generate a STAR-based project section for a resume using Google Gemini API.
     :param repo_data: Dictionary containing GitHub repository details.
     :return: A dictionary with Name, Date, and Descriptions.
     """
     try:
         # Prepare the prompt with the repo data
         prompt = f"""
-        Generate a professional and concise project description for a resume using the STAR (Situation, Task, Action, Result) method. 
+        Generate a professional and concise project description for a resume using the STAR (Situation, Task, Action, Result) method.
         Each component must consist of a single, concise sentence written in formal, action-oriented language without personal pronouns or references.
 
         Repository Details:
@@ -43,17 +44,15 @@ def generate_star_resume_section(repo_data):
         Ensure the output is concise, professional, and directly applicable to a resume.
         """
 
-        # Call OpenAI API to generate completion
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a professional resume builder"},
-                {"role": "user", "content": prompt},
-            ]
+        # Call Google Gemini API to generate completion
+        response = client.generate_text(
+            prompt=prompt,
+            temperature=0.7,
+            max_tokens=500
         )
 
         # Parse the result
-        result_text = completion.choices[0].message.content.strip()
+        result_text = response.result.strip()
         descriptions = [line.split(": ", 1)[1].strip() for line in result_text.split("\n") if ": " in line]
 
         # Return the structured data
@@ -69,9 +68,8 @@ def generate_star_resume_section(repo_data):
         return None
 
 
-
 if __name__ == "__main__":
-    
+
     # Define GitHub repository details
     owner = "PhongCT1105"
     repo = "Neetcode"
