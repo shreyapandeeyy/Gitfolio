@@ -1,22 +1,23 @@
 import os
-from openai import OpenAI
+from google import genai
+from google.genai import types
 from dotenv import load_dotenv
 import json
 
 # Load environment variables
 load_dotenv()
 
-# OpenAI API Key
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# Google Gemini API Key
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Initialize OpenAI client
-client = OpenAI(
-    api_key=OPENAI_API_KEY,
+# Initialize Google Gemini client
+client = genai.Client(
+    api_key=GEMINI_API_KEY,
 )
 
 def generate_cover_letter(name, job_title, company_name, job_description, skills):
     """
-    Generate a personalized cover letter content using the OpenAI API.
+    Generate a personalized cover letter content using the Google Gemini API.
     :param name: Applicant's name.
     :param job_title: Job title for the application.
     :param company_name: Name of the company.
@@ -25,8 +26,8 @@ def generate_cover_letter(name, job_title, company_name, job_description, skills
     :return: A string containing the generated cover letter.
     """
     try:
-        # Prepare the prompt with the details
-        prompt = f"""
+        # Prepare the input text with the details
+        input_text = f"""
         Generate a personalized and professional cover letter for a job application.
         Use the following details:
 
@@ -64,21 +65,33 @@ def generate_cover_letter(name, job_title, company_name, job_description, skills
         Ensure the cover letter is concise, professional, and tailored to the job description.
         """
 
-        # Call OpenAI API to generate completion
-        completion = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": "You are a professional cover letter writer"},
-                {"role": "user", "content": prompt},
-            ]
+        # Set up the request configuration
+        contents = [
+            types.Content(
+                role="user",
+                parts=[types.Part.from_text(text=input_text)],
+            )
+        ]
+        generate_content_config = types.GenerateContentConfig(
+            response_mime_type="text/plain",
         )
 
-        # Parse and return the generated cover letter
-        return completion.choices[0].message.content.strip()
+        # Call Google Gemini API to generate content
+        result_text = ""
+        for chunk in client.models.generate_content_stream(
+            model="gemini-2.0-flash",
+            contents=contents,
+            config=generate_content_config,
+        ):
+            result_text += chunk.text
+
+        # Return the generated cover letter
+        return result_text.strip()
 
     except Exception as e:
         print(f"Error generating cover letter: {e}")
         return None
+
 
 if __name__ == "__main__":
     # Input details
